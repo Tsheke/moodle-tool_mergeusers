@@ -177,6 +177,18 @@ if ($ADMIN->fulltree) {
         ));
     }
 
+    // Search by Profile fields.
+    $profilefieldsoptions = tool_mergeusers_build_profilefields_options();
+    if ($profilefieldsoptions->options) {
+        $generalsettings->add(new admin_setting_configmultiselect(
+            'tool_mergeusers/searchbyprofilefields',
+            get_string('searchbyprofilefields', 'tool_mergeusers'),
+            get_string('searchbyprofilefields_desc', 'tool_mergeusers', $profilefieldsoptions->defaultvalue),
+            [$profilefieldsoptions->defaultkey], // Default value: none.
+            $profilefieldsoptions->options
+        ));
+    }
+
     // Add database settings.
     if ($showtabs) {
         $databasesettings->add($tabs);

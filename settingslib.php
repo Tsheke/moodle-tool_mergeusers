@@ -123,3 +123,29 @@ function tool_mergeusers_inform_about_pending_user_profile_fields(): stdClass {
         'url' => (new moodle_url('/user/profile/index.php'))->out(false),
     ];
 }
+
+/**
+ * Build options for search by user profile settings.
+ *
+ * @return stdClass instance with optionnals profil fields that can be enable for searching users.
+ */
+function tool_mergeusers_build_profilefields_options() {
+    global $CFG;
+    require_once($CFG->dirroot . '/user/filters/profilefield.php');
+    $userprofile = new \user_filter_profilefield('profile', get_string('profilefields', 'admin'), false);
+    $profilefields = $userprofile->get_profile_fields();
+
+    $none = get_string('none');
+    $options = [-1 => $none];
+    if (array_diff_key($profilefields, [0 => get_string('anyfield', 'filters')])) {
+        foreach ($profilefields as $fieldid => $fieldname) {
+            $options[$fieldid] = $fieldname;
+        }
+    }
+    $result = new \stdClass();
+    $result->defaultkey = -1;
+    $result->defaultvalue = $none;
+    $result->options = $options;
+
+    return $result;
+}

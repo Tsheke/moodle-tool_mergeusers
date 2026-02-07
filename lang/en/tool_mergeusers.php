@@ -98,6 +98,10 @@ $string['quizattemptsaction_desc'] = 'When merging quiz attempts there may exist
 $string['results'] = 'Merge results and log';
 $string['review_users'] = 'Confirm users to merge';
 $string['saveselection_submit'] = 'Save selection';
+$string['searchbyprofilefields'] = 'Search by profile fields';
+$string['searchbyprofilefields_desc'] = 'Select custom user profile fields allowed for users search
+    <br/> Selecting "none" removes the option for searching by user profile field.
+    <br/> "Any"  allow search by any allowed profile field.';
 $string['searchuser'] = 'Search for User';
 $string['searchuser_help'] = 'Enter the expression you want to match for a specific user field. Only Id makes exact match. The rest of user fields provides partial matching. You can also search for all supported user fields at once.';
 $string['setting:invalidjson'] = 'Invalid JSON content.';

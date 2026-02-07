@@ -64,8 +64,9 @@ final class user_searcher {
             // Search on id field.
             case 'id':
                 // The sql_cast_to_char() prevents PostgreSQL error when comparing id column when $input is not an integer.
-                $where = $DB->sql_cast_to_char('id') . ' = :userid';
+                $where = 'WHERE ' . $DB->sql_cast_to_char('usr.id') . ' = :userid';
                 $params = ['userid' => $input];
+                $sql = 'SELECT usr.* FROM {user} usr ';
                 break;
             // Searching by any of these fields.
             case 'username':
@@ -73,35 +74,65 @@ final class user_searcher {
             case 'lastname':
             case 'email':
             case 'idnumber':
-                $where = $DB->sql_like($searchfield, ":$searchfield", false, false);
+                $where = 'WHERE ' . $DB->sql_like("usr.$searchfield", ":$searchfield", false, false);
                 $params = [$searchfield => '%' . $input . '%'];
+                $sql = 'SELECT usr.* FROM {user} usr ';
                 break;
             // Search on all fields by default.
             default:
-                $where = '(' .
-                         $DB->sql_cast_to_char('id') . ' = :userid OR ' .
-                         $DB->sql_like('username', ':username', false, false)
+                if (is_numeric($searchfield)) {
+                     // Search by profile field.
+                     $params = [
+                         'data' => '%' . $input . '%',
+                        ];
+
+                     $sql = ' SELECT usr.* FROM {user} usr ';
+                     $sql .= ' LEFT JOIN {user_info_data} uid ON usr.id=uid.userid ';
+                     $where = 'WHERE ' . $DB->sql_like('uid.data', ":data", false, false);
+
+                     if (intval($searchfield) > 0) {// Search on a specific field.
+                         $params['fieldid'] = intval($searchfield);
+                         $where .= ' AND  uid.fieldid=:fieldid ';
+                     }
+                } else {
+                     $where = ' WHERE (' .
+                         $DB->sql_cast_to_char('usr.id') . ' = :userid OR ' .
+                         $DB->sql_like('usr.username', ':username', false, false)
                          . ' OR ' .
-                         $DB->sql_like('firstname', ':firstname', false, false)
+                         $DB->sql_like('usr.firstname', ':firstname', false, false)
                          . ' OR ' .
-                         $DB->sql_like('lastname', ':lastname', false, false)
+                         $DB->sql_like('usr.lastname', ':lastname', false, false)
                          . ' OR ' .
-                         $DB->sql_like('email', ':email', false, false)
+                         $DB->sql_like('usr.email', ':email', false, false)
                          . ' OR ' .
-                         $DB->sql_like('idnumber', ':idnumber', false, false)
-                         . ')';
-                $params['userid'] = $input;
-                $params['username'] = '%' . $input . '%';
-                $params['firstname'] = '%' . $input . '%';
-                $params['lastname'] = '%' . $input . '%';
-                $params['email'] = '%' . $input . '%';
-                $params['idnumber'] = '%' . $input . '%';
+                         $DB->sql_like('usr.idnumber', ':idnumber', false, false)
+                         . ') ';
+                     $params['userid'] = $input;
+                     $params['username'] = '%' . $input . '%';
+                     $params['firstname'] = '%' . $input . '%';
+                     $params['lastname'] = '%' . $input . '%';
+                     $params['email'] = '%' . $input . '%';
+                     $params['idnumber'] = '%' . $input . '%';
+                     $sql = 'SELECT usr.* FROM {user} usr ';
+
+                     $allowedprofilefields = get_config('tool_mergeusers', 'searchbyprofilefields');
+                    if (!empty($allowedprofilefields)) {
+                         $allowedprofilefieldsarray = explode(',', $allowedprofilefields);
+                         [$insql, $inparams] = $DB->get_in_or_equal($allowedprofilefieldsarray, SQL_PARAMS_NAMED, 'apf');
+                         $sql .= ' LEFT JOIN {user_info_data} uid ON usr.id=uid.userid ';
+                         $where .= " OR ((uid.fieldid $insql) AND (" . $DB->sql_like('uid.data', ":data", false, false) . "))";
+                         $params['data'] = '%' . $input . '%';
+                         $params += $inparams;
+                    }
+                }
                 break;
         }
 
-        $where .= ' AND deleted = :deleted';
+        $where .= ' AND usr.deleted = :deleted';
         $params['deleted'] = 0;
-        return $DB->get_records_select('user', $where, $params, 'lastname, firstname');
+        $ordering = ' ORDER BY usr.lastname, usr.firstname';
+        $results = $DB->get_records_sql("$sql $where $ordering", $params);
+        return $results;
     }
 
     /**
@@ -131,13 +162,22 @@ final class user_searcher {
 
         // Check for existing user matching the specified criteria.
         $message = '';
-        try {
-            $user = $DB->get_record('user', [$field => $value, 'deleted' => 0], '*', MUST_EXIST);
-        } catch (Exception $e) {
-            $message = get_string('invaliduser', 'tool_mergeusers', ['field' => $field, 'value' => $value]);
-            $user = null;
+        $user = null;
+        if (is_numeric($field)) {
+            // Search by custom user profile field.
+            $results = $this->search_users($value, $field);
+            if (!empty($results)) {
+                   $user = array_shift($results);
+            }
+        } else {
+              // Search by field of user table.
+            try {
+                 $user = $DB->get_record('user', [$field => $value, 'deleted' => 0], '*', MUST_EXIST);
+            } catch (Exception $e) {
+                 $message = get_string('invaliduser', 'tool_mergeusers', ['field' => $field, 'value' => $value]);
+                 $user = null;
+            }
         }
-
         return [$user, $message];
     }
 }

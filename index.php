@@ -160,7 +160,15 @@ if (!empty($option)) {
 } else if ($data) {
     // If there is a search argument use this instead of advanced form.
     if (!empty($data->searchgroup['searcharg'])) {
-        $searchedusers = $usersearcher->search_users($data->searchgroup['searcharg'], $data->searchgroup['searchfield']);
+        $selectedfield = trim($data->searchgroup['searchfield']);
+        $pattern = '/^profile_field_([1-9][0-9]*)/';
+        if (preg_match($pattern, $selectedfield, $matches)) {
+            // Profile field.
+            $profilefieldid = $matches[1];
+            $searchedusers = $usersearcher->search_users($data->searchgroup['searcharg'], $profilefieldid);
+        } else {
+            $searchedusers = $usersearcher->search_users($data->searchgroup['searcharg'], $data->searchgroup['searchfield']);
+        }
         $userselecttable = new user_select_table($searchedusers, $renderer);
 
         echo $renderer->index_page($mergeuserform, $renderer::INDEX_PAGE_SEARCH_AND_SELECT_STEP, $userselecttable);
